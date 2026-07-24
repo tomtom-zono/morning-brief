@@ -318,3 +318,44 @@ describe('日銀APIの応答パース (入れ子VALUESの回帰テスト)', () =
     expect(pairs[pairs.length - 1]!.value).toBe(163.15);
   });
 });
+
+describe('並列プール (時間爆発対策の回帰テスト)', () => {
+  const mapPool = async <T, R>(
+    items: T[],
+    limit: number,
+    fn: (item: T, index: number) => Promise<R>,
+  ): Promise<R[]> => {
+    const results = new Array<R>(items.length);
+    let next = 0;
+    const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+      while (true) {
+        const i = next++;
+        if (i >= items.length) return;
+        results[i] = await fn(items[i]!, i);
+      }
+    });
+    await Promise.all(workers);
+    return results;
+  };
+
+  it('完了順に関係なく入力順で結果を返す', async () => {
+    // 逆順の遅延を与える: 後の要素ほど早く終わる
+    const out = await mapPool([50, 30, 10], 3, async (ms, i) => {
+      await new Promise((r) => setTimeout(r, ms));
+      return `item${i}`;
+    });
+    expect(out).toEqual(['item0', 'item1', 'item2']);
+  });
+
+  it('同時実行数を上限で抑える', async () => {
+    let running = 0;
+    let peak = 0;
+    await mapPool([1, 2, 3, 4, 5, 6], 2, async () => {
+      running++;
+      peak = Math.max(peak, running);
+      await new Promise((r) => setTimeout(r, 10));
+      running--;
+    });
+    expect(peak).toBeLessThanOrEqual(2);
+  });
+});

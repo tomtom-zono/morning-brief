@@ -19,6 +19,43 @@ import type { RawBundle, RawItem } from './collect.js';
 import { loadSources } from './collect.js';
 import { mockArticle, mockRecap, mockArticleEn, mockRecapEn } from './lib/mock.js';
 import { renderMarketData } from './lib/marketdata.js';
+
+/**
+ * 生成全体の時間予算(分)。既定22分。
+ *
+ * 背景: 記事を直列で生成していたところ、API応答が遅い夜にリトライが重なり
+ * 3時間近く走り続ける事象が起きた(2026-07-24 実測)。夏時間の cron は
+ * 5:30 開始 → 6:00 公開なので、生成に使えるのは実質22分前後しかない。
+ * 予算超過後は、残る記事のリトライを省略して1発生成で進め、英訳もスキップする。
+ * 「完璧な記事を7時に出す」より「十分な記事を6時に出す」を優先する(仕様4.4)。
+ */
+const GEN_BUDGET_MS =
+  (Number(process.env.MB_GEN_BUDGET_MIN) > 0
+    ? Number(process.env.MB_GEN_BUDGET_MIN)
+    : 22) * 60_000;
+
+/** 記事生成の同時実行数。直列(1)だと遅延×リトライで時間が爆発する。 */
+const CONCURRENCY = 4;
+
+/** 並列プール。結果の順序は items の順序を保つ。 */
+async function mapPool<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (true) {
+      const i = next++;
+      if (i >= items.length) return;
+      results[i] = await fn(items[i]!, i);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
 import type { MarketData } from './lib/marketdata.js';
 
 /**
@@ -82,6 +119,11 @@ function renderVariablePart(
   lines.push(
     '各項目は media / title / url / snippet。snippet が "見出しのみ" の媒体は' +
       '本文を取得していないため、内容を推測で補わずリンク誘導に留めること。',
+  );
+  lines.push(
+    '【重要】収集記事にはテーマと無関係なもの(商品紹介・買い物情報・生活記事等)が' +
+      '混在することがある。無関係な記事は完全に無視し、言及も引用もしないこと。' +
+      '無関係な記事の商品名や見出しを鉤括弧で引用すると引用制約違反で不合格になる。',
   );
   lines.push('');
   for (const [i, it] of items.entries()) {
@@ -184,6 +226,7 @@ async function generateArticle(
   items: RawItem[],
   manualNotes: { filename: string; body: string }[],
   market: MarketData,
+  deadline: number,
 ): Promise<{ article: Article; usage: Usage; warnings: string[] }> {
   const variable = renderVariablePart(date, theme, items, manualNotes, market);
   const sourceTexts = items.map((i) => i.snippet).filter((s) => s.length > 0);
@@ -193,6 +236,12 @@ async function generateArticle(
   let best: Article | null = null;
 
   for (let attempt = 0; attempt <= LIMITS.maxRetries; attempt++) {
+    // 時間予算超過後はリトライしない(初回生成のみ行い、警告付きで公開)。
+    if (attempt > 0 && Date.now() > deadline) {
+      lastIssues.push('時間予算超過のためリトライを省略した。');
+      console.warn(`  [budget] ${theme}: 予算超過。リトライを省略。`);
+      break;
+    }
     const suffix = attempt === 0 ? '' : retryHint(lastIssues, attempt);
     const { text, usage: u } = await complete(
       'pro',
@@ -344,9 +393,12 @@ export async function generate(date = todayJst()): Promise<DailyContent> {
     if (en) recap.body_md_en = en;
   }
 
-  const articles: Article[] = [];
-  for (const [idx, theme] of themes.entries()) {
-    console.log(`[generate] (${idx + 1}/${themes.length}) ${theme}`);
+  const deadline = Date.now() + GEN_BUDGET_MS;
+  const t0 = Date.now();
+  const elapsed = () => `${Math.round((Date.now() - t0) / 1000)}s`;
+
+  const genOne = async (theme: string, idx: number): Promise<Article> => {
+    console.log(`[generate] (${idx + 1}/${themes.length}) ${theme} 開始 [${elapsed()}]`);
     const items = bundleForTheme(raw.items, theme);
     const { article, usage: au } = await generateArticle(
       date,
@@ -355,17 +407,37 @@ export async function generate(date = todayJst()): Promise<DailyContent> {
       items,
       raw.manual_notes,
       raw.market,
+      deadline,
     );
     usage = addUsage(usage, au);
+    console.log(`[generate] (${idx + 1}/${themes.length}) ${theme} 完了 [${elapsed()}]`);
+    return article;
+  };
 
-    // 英語対訳(学習用)。検証合格後の本文を Flash で翻訳する。
-    // 品質注意フラグ付きの記事は本文が確定と言えないため翻訳しない。
-    if (!article.quality_warning) {
-      const { en, usage: tu } = await translateArticle(article);
+  // 1本目を先行実行して固定プロンプトのキャッシュを作り(4.1のコスト設計)、
+  // 残りを並列化する。直列だとAPI遅延×リトライで時間が爆発するため。
+  const articles: Article[] = [];
+  if (themes.length > 0) {
+    articles.push(await genOne(themes[0]!, 0));
+    const rest = await mapPool(themes.slice(1), CONCURRENCY, (theme, i) =>
+      genOne(theme, i + 1),
+    );
+    articles.push(...rest);
+  }
+
+  // 英語対訳(学習用)。検証合格後の本文を Flash で並列翻訳する。
+  // 品質注意フラグ付きの記事は本文が確定と言えないため翻訳しない。
+  // 時間予算超過時はスキップし、日本語のみで公開する(6時公開優先)。
+  if (Date.now() <= deadline) {
+    const targets = articles.filter((a) => !a.quality_warning);
+    console.log(`[generate] 英訳 ${targets.length}本を並列実行 [${elapsed()}]`);
+    await mapPool(targets, CONCURRENCY, async (a) => {
+      const { en, usage: tu } = await translateArticle(a);
       usage = addUsage(usage, tu);
-      if (en) article.en = en;
-    }
-    articles.push(article);
+      if (en) a.en = en;
+    });
+  } else {
+    console.warn(`[generate] 時間予算超過のため英訳をスキップ [${elapsed()}]`);
   }
 
   const content: DailyContent = {
