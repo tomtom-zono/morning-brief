@@ -298,6 +298,7 @@ async function generateRecap(
   date: string,
   items: RawItem[],
   market: MarketData,
+  deadline: number,
 ): Promise<{ recap: DailyContent['us_market_recap']; usage: Usage }> {
   const usSession = previousUsSessionDate();
   const relevant = items
@@ -328,6 +329,10 @@ async function generateRecap(
   let issues: string[] = [];
 
   for (let attempt = 0; attempt <= LIMITS.maxRetries; attempt++) {
+    if (attempt > 0 && Date.now() > deadline) {
+      console.warn('  [budget] 米国市場概況: 予算超過。リトライを省略。');
+      break;
+    }
     const suffix = attempt === 0 ? '' : retryHint(issues, attempt);
     const { text, usage: u } = await complete(
       'pro',
@@ -384,18 +389,15 @@ export async function generate(date = todayJst()): Promise<DailyContent> {
 
   let usage = emptyUsage();
 
-  console.log(`[generate] ${date}: 米国市場概況を生成中…`);
-  const { recap, usage: ru } = await generateRecap(date, raw.items, raw.market);
-  usage = addUsage(usage, ru);
-  {
-    const { en, usage: tu } = await translateRecap(recap.body_md);
-    usage = addUsage(usage, tu);
-    if (en) recap.body_md_en = en;
-  }
-
+  // 予算の起点は生成の最初。概況・記事・翻訳のすべてがこの予算に従う。
   const deadline = Date.now() + GEN_BUDGET_MS;
   const t0 = Date.now();
   const elapsed = () => `${Math.round((Date.now() - t0) / 1000)}s`;
+
+  // 概況は記事1本目と並列に走らせる(プロンプト前置が異なるため
+  // キャッシュ形成は互いに独立。直列にする理由が無い)。
+  console.log(`[generate] ${date}: 米国市場概況を生成開始 [${elapsed()}]`);
+  const recapPromise = generateRecap(date, raw.items, raw.market, deadline);
 
   const genOne = async (theme: string, idx: number): Promise<Article> => {
     console.log(`[generate] (${idx + 1}/${themes.length}) ${theme} 開始 [${elapsed()}]`);
@@ -425,17 +427,28 @@ export async function generate(date = todayJst()): Promise<DailyContent> {
     articles.push(...rest);
   }
 
+  const { recap, usage: ru } = await recapPromise;
+  usage = addUsage(usage, ru);
+  console.log(`[generate] 米国市場概況 完了 [${elapsed()}]`);
+
   // 英語対訳(学習用)。検証合格後の本文を Flash で並列翻訳する。
   // 品質注意フラグ付きの記事は本文が確定と言えないため翻訳しない。
   // 時間予算超過時はスキップし、日本語のみで公開する(6時公開優先)。
   if (Date.now() <= deadline) {
     const targets = articles.filter((a) => !a.quality_warning);
-    console.log(`[generate] 英訳 ${targets.length}本を並列実行 [${elapsed()}]`);
-    await mapPool(targets, CONCURRENCY, async (a) => {
-      const { en, usage: tu } = await translateArticle(a);
-      usage = addUsage(usage, tu);
-      if (en) a.en = en;
-    });
+    console.log(`[generate] 英訳 ${targets.length}本+概況を並列実行 [${elapsed()}]`);
+    await Promise.all([
+      mapPool(targets, CONCURRENCY, async (a) => {
+        const { en, usage: tu } = await translateArticle(a);
+        usage = addUsage(usage, tu);
+        if (en) a.en = en;
+      }),
+      (async () => {
+        const { en, usage: tu } = await translateRecap(recap.body_md);
+        usage = addUsage(usage, tu);
+        if (en) recap.body_md_en = en;
+      })(),
+    ]);
   } else {
     console.warn(`[generate] 時間予算超過のため英訳をスキップ [${elapsed()}]`);
   }

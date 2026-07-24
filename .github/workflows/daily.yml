@@ -23,8 +23,11 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # 想定は数分。ハングしても課金が膨らまないよう上限を置く。
-    timeout-minutes: 30
+    # 内部の生成予算は22分。ただし予算超過時も未着手記事の初回生成は
+    # 実行するため(10本必須)、遅い夜は生成完了が予算を食み出す。
+    # 30分だと commit 前に殺されて「課金だけして未公開」になる事故が起きた
+    # (2026-07-24 実測)。公開を確実にするため上限は50分とする。
+    timeout-minutes: 50
 
     steps:
       - uses: actions/checkout@v4

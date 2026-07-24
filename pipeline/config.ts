@@ -18,9 +18,17 @@ export type ModelKey = keyof typeof MODELS;
  * 旧世代のように reasoner 系モデルIDを指定する実装にしないこと。
  */
 export const REASONING = {
-  pro: 'high',
-  flash: 'high',
-} as const;
+  /**
+   * 既定は high(考察の質が本サイトの価値の中核のため)。
+   * ただし high は1回の生成に5〜8分かかる夜があり、朝の時間枠を圧迫する。
+   * 遅延が常態化した場合は Actions の環境変数 MB_REASONING_PRO=medium で
+   * 品質と時間のバランスを切り替えられる(コード変更不要)。
+   */
+  pro: (process.env.MB_REASONING_PRO === 'medium' ? 'medium' : 'high') as
+    | 'medium'
+    | 'high',
+  flash: 'medium' as const,
+};
 
 /** 単価 (USD / 1M tokens)。docs の Models & Pricing に対応。コスト計上のみに使用。 */
 export const PRICING: Record<ModelKey, {
