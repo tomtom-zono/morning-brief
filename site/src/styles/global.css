@@ -1,0 +1,291 @@
+/*
+ * Morning Brief — デザイントークン
+ *
+ * 用途: 6時前後、スマホで、多くは暗い部屋で読まれる速報端末。
+ * 雑誌ではなくターミナル。密度と走査速度を優先し、装飾を持たない。
+ *
+ * 配色: 夜明け前の空(#0F1620)を地に、テーマごとの色で情報を符号化する。
+ * 色は飾りではなく分類子であり、テーマ帯とタグに同じ色を使うことで
+ * 見出しを読まずにカテゴリを判別できるようにする。
+ */
+
+:root {
+  /* 地色: 純黒ではなく青みのある暗色。長時間の可読性を優先 */
+  --bg: #0f1620;
+  --bg-raised: #151e2a;
+  --bg-sunken: #0b111a;
+  --line: #24303f;
+  --line-soft: #1b2531;
+
+  --ink: #e6edf5;
+  --ink-dim: #9fb0c3;
+  --ink-faint: #6b7f95;
+
+  /* テーマ符号色 */
+  --t-rates: #e8a33d;      /* 日銀・円金利・JGB / 米金利 */
+  --t-fx: #6ec5c9;         /* 為替 */
+  --t-equity: #7fb2f0;     /* 日本株 */
+  --t-flow: #b98ee0;       /* 需給・ポジショニング */
+  --t-tech: #5fd4a4;       /* AI・テック・半導体 */
+  --t-credit: #e08a7a;     /* クレジット・プライベート */
+  --t-geo: #d4776b;        /* 地政学・コモディティ */
+  --t-macro: #8fa6c4;      /* 各国マクロ */
+  --t-policy: #c9a86b;     /* 規制・政策 */
+
+  --accent: var(--t-rates);
+  --warn: #e0a04a;
+  --warn-bg: #2a2013;
+
+  /* 和文はOS標準の游ゴシック/ヒラギノを優先。Webフォント読込は
+     6時公開の初期表示速度を損なうため使わない。数値は等幅で桁を揃える */
+  --font-body: "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP",
+    system-ui, sans-serif;
+  --font-mono: "SFMono-Regular", "Roboto Mono", ui-monospace, monospace;
+
+  --w-text: 46rem;
+  --r: 3px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.85;
+  font-feature-settings: "palt" 1;
+}
+
+a { color: inherit; }
+
+:focus-visible {
+  outline: 2px solid var(--t-fx);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---- レイアウト ---- */
+.wrap {
+  max-width: var(--w-text);
+  margin: 0 auto;
+  padding: 0 1.15rem;
+}
+
+/* ---- ヘッダ ---- */
+.masthead {
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-sunken);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  backdrop-filter: blur(8px);
+}
+.masthead-in {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 0.65rem 1.15rem;
+  max-width: var(--w-text);
+  margin: 0 auto;
+}
+.brand {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.brand b { color: var(--accent); font-weight: 600; }
+.masthead nav {
+  margin-left: auto;
+  display: flex;
+  gap: 0.9rem;
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+}
+.masthead nav a { color: var(--ink-faint); text-decoration: none; }
+.masthead nav a:hover, .masthead nav a[aria-current="page"] { color: var(--ink); }
+
+/* ---- 日付見出し ---- */
+.dateline {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  color: var(--ink-faint);
+  padding-top: 1.6rem;
+}
+.page-title {
+  font-size: 1.5rem;
+  line-height: 1.4;
+  margin: 0.2rem 0 1.4rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* ---- 米国市場概況 ---- */
+.recap {
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--accent);
+  background: var(--bg-raised);
+  border-radius: var(--r);
+  padding: 1.2rem 1.25rem 0.6rem;
+  margin-bottom: 2.2rem;
+}
+.recap-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+}
+.recap :is(h2, h3) { font-size: 1rem; margin: 1.2rem 0 0.4rem; }
+.recap p { margin: 0 0 0.9rem; }
+
+/* ---- 記事カード ---- */
+.cards { display: flex; flex-direction: column; gap: 0; }
+.card {
+  border-top: 1px solid var(--line-soft);
+  padding: 1.15rem 0;
+  display: grid;
+  grid-template-columns: 3px 1fr;
+  gap: 0 0.95rem;
+}
+.card:last-child { border-bottom: 1px solid var(--line-soft); }
+.card-rule { background: var(--tc, var(--ink-faint)); border-radius: 2px; }
+.card-theme {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  color: var(--tc, var(--ink-faint));
+  text-transform: uppercase;
+}
+.card h2 { font-size: 1.06rem; line-height: 1.5; margin: 0.25rem 0 0.45rem; font-weight: 600; }
+.card h2 a { text-decoration: none; }
+.card h2 a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.card p { margin: 0; color: var(--ink-dim); font-size: 0.94rem; line-height: 1.8; }
+.card-foot {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-top: 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--ink-faint);
+}
+
+/* ---- 記事本文 ---- */
+.article-body { font-size: 1rem; }
+.article-body h2 {
+  font-size: 1.05rem;
+  margin: 2.2rem 0 0.6rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--line);
+  font-weight: 600;
+}
+.article-body h3 { font-size: 0.98rem; margin: 1.5rem 0 0.4rem; color: var(--ink-dim); }
+.article-body p { margin: 0 0 1.15rem; }
+.article-body a { color: var(--t-fx); text-underline-offset: 3px; }
+.article-body blockquote {
+  margin: 1rem 0;
+  padding: 0.3rem 0 0.3rem 0.9rem;
+  border-left: 2px solid var(--line);
+  color: var(--ink-dim);
+}
+.article-body ul, .article-body ol { padding-left: 1.3rem; margin: 0 0 1.15rem; }
+
+.part-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  margin: 2.4rem 0 0.5rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--line);
+}
+.summary-block {
+  background: var(--bg-raised);
+  border-left: 2px solid var(--tc, var(--accent));
+  border-radius: 0 var(--r) var(--r) 0;
+  padding: 0.9rem 1.05rem;
+  margin-bottom: 1.6rem;
+  font-size: 0.97rem;
+}
+.summary-block p { margin: 0; }
+
+/* ---- 出典 ---- */
+.sources { font-size: 0.85rem; color: var(--ink-dim); }
+.sources li { margin-bottom: 0.35rem; }
+
+/* ---- 品質注意フラグ ---- */
+.quality-flag {
+  border: 1px solid var(--warn);
+  background: var(--warn-bg);
+  border-radius: var(--r);
+  padding: 0.6rem 0.85rem;
+  font-size: 0.85rem;
+  color: var(--warn);
+  margin-bottom: 1.2rem;
+}
+
+/* ---- ブックマークボタン ---- */
+.bm {
+  background: none;
+  border: 1px solid var(--line);
+  color: var(--ink-faint);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--r);
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s;
+}
+.bm:hover { color: var(--ink); border-color: var(--ink-faint); }
+.bm[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+.bm[hidden] { display: none; }
+
+/* ---- フッタ ---- */
+.foot {
+  margin-top: 3.5rem;
+  border-top: 1px solid var(--line);
+  padding: 1.3rem 0 2.5rem;
+  font-size: 0.8rem;
+  color: var(--ink-faint);
+  line-height: 1.7;
+}
+.foot .disclaimer { color: var(--ink-dim); }
+
+/* ---- ユーティリティ ---- */
+.empty {
+  border: 1px dashed var(--line);
+  border-radius: var(--r);
+  padding: 2rem 1.2rem;
+  text-align: center;
+  color: var(--ink-faint);
+  font-size: 0.92rem;
+}
+.mono { font-family: var(--font-mono); }
+.vh {
+  position: absolute; width: 1px; height: 1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  body { font-size: 15.5px; }
+  .page-title { font-size: 1.28rem; }
+  .masthead nav { gap: 0.7rem; }
+}

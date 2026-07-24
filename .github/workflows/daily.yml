@@ -1,0 +1,87 @@
+name: daily brief
+
+on:
+  schedule:
+    # 仕様4.7: cron 2本を常時有効にし、スクリプト冒頭で夏/冬時間を判定して片方をスキップする。
+    # 夏時間期: JST 5:30 生成開始 → 6:00 までに公開
+    - cron: '30 20 * * *'
+    # 冬時間期: JST 6:00 生成開始 → 6:30 頃公開
+    - cron: '0 21 * * *'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: '生成対象日 (YYYY-MM-DD)。空なら当日(JST)'
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-brief
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # 想定は数分。ハングしても課金が膨らまないよう上限を置く。
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 依存をインストール
+        run: npm ci
+
+      - name: 収集 → 生成 → 検証
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          # どちらの cron で起動したかを渡す。片方は自動でスキップされる(仕様4.7)。
+          MB_SCHEDULE: ${{ github.event.schedule == '30 20 * * *' && 'summer' || (github.event.schedule == '0 21 * * *' && 'winter' || '') }}
+          MB_DATE: ${{ github.event.inputs.date }}
+        run: |
+          if [ -n "$MB_DATE" ]; then
+            npm run daily -- "$MB_DATE" | tee daily.log
+          else
+            npm run daily | tee daily.log
+          fi
+          # トークン使用量・コストを Actions のサマリーに表示(仕様4.8)
+          {
+            echo '## 実行結果'
+            echo '```'
+            grep -A 5 "トークン使用量" daily.log || true
+            echo '```'
+            echo '### 検証レポート'
+            echo '```'
+            sed -n '/検証レポート/,/=====$/p' daily.log | head -40 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: content/ をコミット(アーカイブとして永続化)
+        run: |
+          if [ -z "$(git status --porcelain content/)" ]; then
+            echo "生成物に変更なし(スキップされた日の可能性)。コミットしない。"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add content/
+          git commit -m "content: $(TZ=Asia/Tokyo date +%Y-%m-%d) のブリーフ"
+          # 手動実行と cron が競合した場合に備え、push は rebase 付きで最大3回試す
+          for i in 1 2 3; do
+            if git push; then exit 0; fi
+            echo "push 失敗 ($i/3)。リモートを取り込んで再試行する。"
+            git pull --rebase
+            sleep 5
+          done
+          echo "push に3回失敗した。"
+          exit 1
+
+      # Cloudflare Pages を GitHub 連携で設定している場合、上の push で
+      # 自動ビルド・デプロイされる。GitHub Pages を使う場合のみ以下を有効化する。
+      # - name: サイトをビルド
+      #   run: npm run build --prefix site

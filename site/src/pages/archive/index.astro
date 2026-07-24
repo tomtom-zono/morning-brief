@@ -1,0 +1,25 @@
+---
+import Base from '../../layouts/Base.astro';
+import { allDays, formatDate } from '../../lib/content';
+const days = allDays();
+---
+<Base title="アーカイブ | Morning Brief" current="archive">
+  <div class="dateline">全 {days.length} 日分</div>
+  <h1 class="page-title">アーカイブ</h1>
+  {days.length === 0 ? (
+    <div class="empty">まだ記事がありません。</div>
+  ) : (
+    <div class="cards">
+      {days.map((d) => (
+        <article class="card" style="--tc:var(--ink-faint)">
+          <div class="card-rule"></div>
+          <div>
+            <div class="card-theme">{formatDate(d.date)}</div>
+            <h2><a href={`/${d.date}/`}>{d.articles.length}本の記事</a></h2>
+            <p>{d.articles.map((a) => a.theme).slice(0, 5).join(' / ')}</p>
+          </div>
+        </article>
+      ))}
+    </div>
+  )}
+</Base>

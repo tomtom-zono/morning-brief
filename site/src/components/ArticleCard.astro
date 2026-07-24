@@ -1,0 +1,21 @@
+---
+import BookmarkButton from './BookmarkButton.astro';
+import { themeColor, type Article } from '../lib/content';
+
+interface Props { article: Article; date: string }
+const { article: a, date } = Astro.props;
+const tc = themeColor(a.theme);
+---
+<article class="card" style={`--tc:${tc}`} data-theme={a.theme}>
+  <div class="card-rule"></div>
+  <div>
+    <div class="card-theme">{a.theme}</div>
+    <h2><a href={`/${date}/${a.id}/`}>{a.title}</a></h2>
+    <p>{a.summary}</p>
+    <div class="card-foot">
+      <BookmarkButton id={a.id} date={date} title={a.title} theme={a.theme} />
+      {a.quality_warning && <span style="color:var(--warn)">品質注意</span>}
+      <span>{a.sources.length}出典</span>
+    </div>
+  </div>
+</article>

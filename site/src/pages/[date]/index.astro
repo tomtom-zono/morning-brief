@@ -1,0 +1,24 @@
+---
+import Base from '../../layouts/Base.astro';
+import ArticleCard from '../../components/ArticleCard.astro';
+import USMarketRecap from '../../components/USMarketRecap.astro';
+import { allDays, formatDate } from '../../lib/content';
+
+export function getStaticPaths() {
+  return allDays().map((day) => ({ params: { date: day.date }, props: { day } }));
+}
+
+const { day } = Astro.props;
+---
+<Base
+  title={`${formatDate(day.date)} | Morning Brief`}
+  disclaimer={day.disclaimer}
+  current="archive"
+>
+  <div class="dateline">{formatDate(day.date)} 版</div>
+  <h1 class="page-title">この日のブリーフ</h1>
+  <USMarketRecap bodyMd={day.us_market_recap.body_md} bodyMdEn={day.us_market_recap.body_md_en} />
+  <div class="cards">
+    {day.articles.map((a) => <ArticleCard article={a} date={day.date} />)}
+  </div>
+</Base>

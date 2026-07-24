@@ -1,0 +1,42 @@
+---
+import Base from '../../layouts/Base.astro';
+---
+<Base title="検索 | Morning Brief" current="search">
+  <div class="dateline">全文検索</div>
+  <h1 class="page-title">検索</h1>
+  <div id="search"></div>
+  <link href="/pagefind/pagefind-ui.css" rel="stylesheet" />
+  <script is:inline src="/pagefind/pagefind-ui.js"></script>
+  <script is:inline>
+    window.addEventListener('DOMContentLoaded', function () {
+      if (typeof PagefindUI === 'undefined') {
+        document.getElementById('search').innerHTML =
+          '<div class="empty">検索インデックスがまだ作成されていません。<br><code class="mono">npm run build</code> の実行後に利用できます。</div>';
+        return;
+      }
+      new PagefindUI({
+        element: '#search',
+        showSubResults: true,
+        showImages: false,
+        translations: {
+          placeholder: 'キーワードで検索',
+          clear_search: 'クリア',
+          load_more: 'さらに表示',
+          search_label: 'このサイトを検索',
+          zero_results: '「[SEARCH_TERM]」に一致する記事はありません'
+        }
+      });
+    });
+  </script>
+  <style is:global>
+    :root {
+      --pagefind-ui-primary: var(--ink);
+      --pagefind-ui-text: var(--ink);
+      --pagefind-ui-background: var(--bg);
+      --pagefind-ui-border: var(--line);
+      --pagefind-ui-tag: var(--bg-raised);
+      --pagefind-ui-border-radius: 3px;
+      --pagefind-ui-font: var(--font-body);
+    }
+  </style>
+</Base>

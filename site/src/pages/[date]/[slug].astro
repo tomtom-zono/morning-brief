@@ -1,0 +1,77 @@
+---
+import Base from '../../layouts/Base.astro';
+import BookmarkButton from '../../components/BookmarkButton.astro';
+import { allDays, renderMarkdown, themeColor, formatDate } from '../../lib/content';
+
+export function getStaticPaths() {
+  return allDays().flatMap((day) =>
+    day.articles.map((article) => ({
+      params: { date: day.date, slug: article.id },
+      props: { article, day },
+    })),
+  );
+}
+
+const { article: a, day } = Astro.props;
+const tc = themeColor(a.theme);
+const detailHtml = renderMarkdown(a.detail_md);
+const analysisHtml = renderMarkdown(a.analysis_md);
+---
+<Base
+  title={`${a.title} | Morning Brief`}
+  description={a.summary.slice(0, 110)}
+  disclaimer={day.disclaimer}
+>
+  <div style={`--tc:${tc}`}>
+    <div class="dateline">
+      <a href={`/${day.date}/`} style="color:inherit">{formatDate(day.date)}</a>
+      <span style={`color:${tc}`}> · {a.theme}</span>
+    </div>
+
+    <h1 class="page-title" data-pagefind-meta="title">{a.title}</h1>
+
+    <div style="margin-bottom:1.6rem">
+      <BookmarkButton id={a.id} date={day.date} title={a.title} theme={a.theme} />
+    </div>
+
+    {a.quality_warning && (
+      <div class="quality-flag">
+        <strong>生成品質注意</strong> — この記事は自動検証の基準を満たしませんでした。
+        内容は参考程度にとどめ、必ず出典をご確認ください。
+      </div>
+    )}
+
+    <div data-pagefind-body class="article-body">
+      <div class="summary-block"><p>{a.summary}</p></div>
+
+      <div class="part-label">内容詳細</div>
+      <div set:html={detailHtml} />
+
+      <div class="part-label">拡張考察</div>
+      <div set:html={analysisHtml} />
+
+      {a.en && (
+        <>
+          <div class="part-label" lang="en">English Version</div>
+          <div lang="en">
+            <h2 style="border-bottom:none;margin-top:0.5rem">{a.en.title}</h2>
+            <div class="summary-block"><p>{a.en.summary}</p></div>
+            <div class="part-label" lang="en">Details</div>
+            <div set:html={renderMarkdown(a.en.detail_md)} />
+            <div class="part-label" lang="en">Analysis</div>
+            <div set:html={renderMarkdown(a.en.analysis_md)} />
+          </div>
+        </>
+      )}
+    </div>
+
+    <div class="part-label">出典</div>
+    <ul class="sources">
+      {a.sources.map((s) => (
+        <li>
+          <a href={s.url} target="_blank" rel="noopener noreferrer">{s.name}</a>
+        </li>
+      ))}
+    </ul>
+  </div>
+</Base>

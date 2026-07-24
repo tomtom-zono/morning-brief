@@ -1,0 +1,111 @@
+---
+/**
+ * ブックマークトグル(仕様4.5)。
+ * localStorage キー mb_bookmarks に [{id,date,title,theme,savedAt}] を保存。
+ * localStorage が使えない環境では try-catch でボタンを非表示にする。
+ */
+interface Props {
+  id: string;
+  date: string;
+  title: string;
+  theme: string;
+}
+const { id, date, title, theme } = Astro.props;
+---
+
+<button
+  class="bm"
+  data-bm
+  data-id={id}
+  data-date={date}
+  data-title={title}
+  data-theme={theme}
+  aria-pressed="false"
+  hidden
+>保存</button>
+
+<script is:inline>
+  (function () {
+    if (window.__mbBookmarkInit) return;
+    window.__mbBookmarkInit = true;
+
+    var KEY = 'mb_bookmarks';
+
+    function available() {
+      try {
+        var t = '__mb_t__';
+        localStorage.setItem(t, '1');
+        localStorage.removeItem(t);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function read() {
+      try {
+        var v = JSON.parse(localStorage.getItem(KEY) || '[]');
+        return Array.isArray(v) ? v : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function write(list) {
+      try {
+        localStorage.setItem(KEY, JSON.stringify(list));
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    window.mbBookmarks = { read: read, write: write, KEY: KEY };
+
+    function paint(btn, on) {
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      btn.textContent = on ? '保存済み' : '保存';
+    }
+
+    function init() {
+      if (!available()) return; // ボタンは hidden のまま(仕様4.5)
+      var saved = read();
+      var btns = document.querySelectorAll('[data-bm]');
+      for (var i = 0; i < btns.length; i++) {
+        (function (btn) {
+          btn.hidden = false;
+          var id = btn.getAttribute('data-id');
+          paint(btn, saved.some(function (b) { return b.id === id; }));
+
+          btn.addEventListener('click', function () {
+            var list = read();
+            var idx = -1;
+            for (var j = 0; j < list.length; j++) if (list[j].id === id) { idx = j; break; }
+            if (idx >= 0) {
+              list.splice(idx, 1);
+              write(list);
+              paint(btn, false);
+            } else {
+              list.push({
+                id: id,
+                date: btn.getAttribute('data-date'),
+                title: btn.getAttribute('data-title'),
+                theme: btn.getAttribute('data-theme'),
+                savedAt: new Date().toISOString()
+              });
+              write(list);
+              paint(btn, true);
+            }
+            document.dispatchEvent(new CustomEvent('mb:bookmarks-changed'));
+          });
+        })(btns[i]);
+      }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  })();
+</script>

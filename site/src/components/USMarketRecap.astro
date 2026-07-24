@@ -1,0 +1,17 @@
+---
+import { renderMarkdown } from '../lib/content';
+interface Props { bodyMd: string; bodyMdEn?: string }
+const { bodyMd, bodyMdEn } = Astro.props;
+const html = renderMarkdown(bodyMd);
+const htmlEn = bodyMdEn ? renderMarkdown(bodyMdEn) : null;
+---
+<section class="recap" data-pagefind-body>
+  <div class="recap-label">前日の米国市場</div>
+  <div set:html={html} />
+  {htmlEn && (
+    <>
+      <div class="recap-label" lang="en" style="margin-top:1.4rem;border-top:1px solid var(--line);padding-top:1rem">English Version</div>
+      <div lang="en" set:html={htmlEn} />
+    </>
+  )}
+</section>

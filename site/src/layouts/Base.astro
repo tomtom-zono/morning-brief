@@ -1,0 +1,79 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description?: string;
+  /** 仕様2.4: 全ページフッターに免責を表示する */
+  disclaimer?: string;
+  current?: 'today' | 'archive' | 'bookmarks' | 'search';
+}
+
+const {
+  title,
+  description = '日本株・円金利・マクロの朝次ブリーフ',
+  disclaimer = '本サイトは情報提供のみを目的とし、投資助言ではありません。',
+  current,
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0f1620" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Morning Brief" />
+  </head>
+  <body>
+    <header class="masthead">
+      <div class="masthead-in">
+        <a class="brand" href="/">MORNING <b>BRIEF</b></a>
+        <nav>
+          <a href="/" aria-current={current === 'today' ? 'page' : undefined}>当日</a>
+          <a href="/archive/" aria-current={current === 'archive' ? 'page' : undefined}>アーカイブ</a>
+          <a href="/bookmarks/" aria-current={current === 'bookmarks' ? 'page' : undefined}>保存</a>
+          <a href="/search/" aria-current={current === 'search' ? 'page' : undefined}>検索</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <slot />
+    </main>
+
+    <footer class="foot">
+      <div class="wrap">
+        <p class="disclaimer">{disclaimer}</p>
+        <p>
+          記事は公開されている報道・一次情報をもとに自動生成しています。
+          原文の著作権は各発行元に帰属します。数値・固有名詞は出典をご確認ください。
+        </p>
+        <p>
+          このサービスは、日本銀行時系列統計データ検索サイトの API 機能を使用しています。
+          サービスの内容は日本銀行によって保証されたものではありません。
+        </p>
+        <p>
+          米国債利回りは米国財務省、株価指数等は FRED(セントルイス連邦準備銀行)
+          の公開データを利用しています。
+        </p>
+      </div>
+    </footer>
+
+    <script is:inline>
+      // Service Worker 登録(仕様4.6)。開発時は登録しない。
+      if ('serviceWorker' in navigator && location.hostname !== 'localhost') {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('/sw.js').catch(function () {});
+        });
+      }
+    </script>
+  </body>
+</html>

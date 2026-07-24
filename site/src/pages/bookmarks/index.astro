@@ -1,0 +1,142 @@
+---
+import Base from '../../layouts/Base.astro';
+---
+<Base title="保存した記事 | Morning Brief" current="bookmarks">
+  <div class="dateline"><span id="bm-count">—</span></div>
+  <h1 class="page-title">保存した記事</h1>
+
+  <div id="bm-filter" style="margin-bottom:1.2rem" hidden>
+    <label class="vh" for="bm-theme">テーマで絞り込む</label>
+    <select
+      id="bm-theme"
+      style="background:var(--bg-raised);color:var(--ink);border:1px solid var(--line);border-radius:3px;padding:0.35rem 0.6rem;font-family:var(--font-mono);font-size:0.8rem"
+    >
+      <option value="">すべてのテーマ</option>
+    </select>
+  </div>
+
+  <div id="bm-list" class="cards"></div>
+
+  <div id="bm-empty" class="empty" hidden>
+    保存した記事はまだありません。<br />
+    記事の「保存」ボタンを押すと、ここに集まります。
+  </div>
+
+  <div id="bm-unsupported" class="empty" hidden>
+    このブラウザでは保存機能を利用できません。
+  </div>
+</Base>
+
+<script is:inline>
+  (function () {
+    var KEY = 'mb_bookmarks';
+    var listEl = document.getElementById('bm-list');
+    var emptyEl = document.getElementById('bm-empty');
+    var unsupEl = document.getElementById('bm-unsupported');
+    var filterEl = document.getElementById('bm-filter');
+    var selEl = document.getElementById('bm-theme');
+    var countEl = document.getElementById('bm-count');
+
+    function supported() {
+      try {
+        localStorage.setItem('__t__', '1');
+        localStorage.removeItem('__t__');
+        return true;
+      } catch (e) { return false; }
+    }
+
+    function read() {
+      try {
+        var v = JSON.parse(localStorage.getItem(KEY) || '[]');
+        return Array.isArray(v) ? v : [];
+      } catch (e) { return []; }
+    }
+
+    function write(v) {
+      try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) {}
+    }
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+
+    function themeColor(t) {
+      t = t || '';
+      if (/日銀|円金利|JGB|米金融政策|米金利/.test(t)) return 'var(--t-rates)';
+      if (/為替|ドル円|ベーシス/.test(t)) return 'var(--t-fx)';
+      if (/日本株/.test(t)) return 'var(--t-equity)';
+      if (/需給|ポジショニング/.test(t)) return 'var(--t-flow)';
+      if (/AI|テック|半導体/.test(t)) return 'var(--t-tech)';
+      if (/クレジット|プライベート/.test(t)) return 'var(--t-credit)';
+      if (/地政学|コモディティ/.test(t)) return 'var(--t-geo)';
+      if (/規制|政策|制度/.test(t)) return 'var(--t-policy)';
+      return 'var(--t-macro)';
+    }
+
+    function render() {
+      var all = read();
+      // 日付降順(仕様4.5)
+      all.sort(function (a, b) {
+        if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+        return (b.savedAt || '') < (a.savedAt || '') ? -1 : 1;
+      });
+
+      countEl.textContent = all.length + ' 件';
+
+      // テーマ選択肢を再構築(選択状態は保持)
+      var themes = [];
+      for (var i = 0; i < all.length; i++) {
+        if (all[i].theme && themes.indexOf(all[i].theme) === -1) themes.push(all[i].theme);
+      }
+      var cur = selEl.value;
+      selEl.innerHTML = '<option value="">すべてのテーマ</option>';
+      for (var j = 0; j < themes.length; j++) {
+        var o = document.createElement('option');
+        o.value = themes[j];
+        o.textContent = themes[j];
+        selEl.appendChild(o);
+      }
+      if (themes.indexOf(cur) !== -1) selEl.value = cur;
+
+      var shown = selEl.value
+        ? all.filter(function (b) { return b.theme === selEl.value; })
+        : all;
+
+      filterEl.hidden = all.length === 0;
+      emptyEl.hidden = all.length !== 0;
+
+      listEl.innerHTML = shown.map(function (b) {
+        return (
+          '<article class="card" style="--tc:' + themeColor(b.theme) + '">' +
+          '<div class="card-rule"></div><div>' +
+          '<div class="card-theme">' + esc(b.theme) + '</div>' +
+          '<h2><a href="/' + esc(b.date) + '/' + esc(b.id) + '/">' + esc(b.title) + '</a></h2>' +
+          '<div class="card-foot">' +
+          '<span>' + esc(b.date) + '</span>' +
+          '<button class="bm" data-remove="' + esc(b.id) + '">削除</button>' +
+          '</div></div></article>'
+        );
+      }).join('');
+
+      var btns = listEl.querySelectorAll('[data-remove]');
+      for (var k = 0; k < btns.length; k++) {
+        btns[k].addEventListener('click', function () {
+          var id = this.getAttribute('data-remove');
+          write(read().filter(function (b) { return b.id !== id; }));
+          render();
+        });
+      }
+    }
+
+    if (!supported()) {
+      unsupEl.hidden = false;
+      countEl.textContent = '利用不可';
+      return;
+    }
+    selEl.addEventListener('change', render);
+    document.addEventListener('mb:bookmarks-changed', render);
+    render();
+  })();
+</script>

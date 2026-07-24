@@ -1,0 +1,124 @@
+# 仕様 3.1: フィードの追加・削除は本ファイルの編集のみで完結させる。
+#   use: full     = 公式RSSに要約が含まれ、内容詳細の材料に使える
+#   use: headline = 見出し+スニペットのみ利用。本文はリンク誘導(仕様 3.1)
+#   primary: true = 一次情報。考察での事実根拠として優先する
+# ※ YAMLコメントは # 。上2行は説明のため便宜的に記載。
+
+defaults:
+  timeout_ms: 20000
+  max_items_per_feed: 25
+  # robots.txt を尊重し、ペイウォール回避は行わない(仕様 2.4)。
+  # 一部の配信元は既定のUAを一律で拒否する(ロイターが403)。取得するのは
+  # 公開RSSのみで、認証回避や有料記事の取得は行わない。
+  respect_robots: true
+  user_agent: "Mozilla/5.0 (compatible; morning-brief/1.0; personal RSS reader)"
+
+feeds:
+  # ---- 海外メディア ----
+  - id: cnbc-top
+    name: CNBC
+    url: https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114
+    theme_hint: 米金融政策・米金利
+    use: full
+    lang: en
+
+  - id: cnbc-markets
+    name: CNBC Markets
+    url: https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=20910258
+    theme_hint: 米国市場概況
+    use: full
+    lang: en
+
+  - id: ft-home
+    name: Financial Times
+    url: https://www.ft.com/rss/home
+    theme_hint: 各国マクロ
+    use: headline
+    lang: en
+
+  # ---- 国内メディア ----
+  # ロイターは公式RSSの提供状況が変動する。以下は第三者ミラー(wor.jp)。
+  # 403 が続く場合は npm run check:feeds で確認のうえ削除してよい。
+  # ロイターが取れなくても、NY市場概況は CNBC で代替できる。
+  - id: reuters-jp-business
+    name: ロイター日本語版(ビジネス)
+    url: https://assets.wor.jp/rss/rdf/reuters/business.rdf
+    theme_hint: 日本株
+    use: full
+    lang: ja
+
+  - id: reuters-jp-market
+    name: ロイター日本語版(マーケット)
+    url: https://assets.wor.jp/rss/rdf/reuters/market.rdf
+    theme_hint: 米国市場概況
+    use: full
+    lang: ja
+
+  # 日経系・その他の代替候補(疎通を確認して採用を判断する)
+  - id: yahoo-fx
+    name: Yahoo!ファイナンス(為替・FX)
+    url: https://news.yahoo.co.jp/rss/topics/business.xml
+    theme_hint: 為替
+    use: headline
+    lang: ja
+
+  - id: diamond-online
+    name: ダイヤモンド・オンライン
+    url: https://diamond.jp/list/feed/rss/dol
+    theme_hint: 日本株
+    use: full
+    lang: ja
+
+  # ---- 一次情報(仕様 3.1・追加提案採用分) ----
+  - id: boj-releases
+    name: 日本銀行(公表資料)
+    url: https://www.boj.or.jp/rss/whatsnew.xml
+    theme_hint: 日銀・円金利・JGB
+    use: full
+    lang: ja
+    primary: true
+
+  # 財務省は入札専用フィードを持たず、新着情報の一本のみ。
+  # 国債入札結果もここに流れる(2026-07 に RSS一覧ページで確認)。
+  - id: mof-news
+    name: 財務省(新着情報)
+    url: https://www.mof.go.jp/news.rss
+    theme_hint: 日銀・円金利・JGB
+    use: full
+    lang: ja
+    primary: true
+
+  # 内閣府(ESRI)は 2026-07 時点で「営利・非営利を問わず、その情報に基づいた
+  # ホームページの作成、情報の再配布を固くお断りする」と明記している。
+  # 本サイトは公開サイトのため規約に抵触する。仕様2.4の姿勢に従い採用しない。
+  # GDP・月例経済報告は日銀・ロイター経由で捕捉する。
+  #  https://www.cao.go.jp/rss/  (参照日 2026-07-24)
+
+  - id: jpx-markets-news
+    name: JPX(マーケットニュース)
+    url: https://www.jpx.co.jp/rss/markets_news.xml
+    theme_hint: 需給・ポジショニング
+    use: full
+    lang: ja
+    primary: true
+
+  - id: jpx-news
+    name: JPX(お知らせ)
+    url: https://www.jpx.co.jp/rss/jpx-news.xml
+    theme_hint: 規制・政策・制度変更
+    use: full
+    lang: ja
+    primary: true
+
+# テーマ配分ガイド(仕様 2.3)。日によって柔軟に変更可。
+themes:
+  - 日銀・円金利・JGB
+  - 為替(ドル円・クロスカレンシーベーシス)
+  - "日本株: 個別・セクター・決算"
+  - 需給・ポジショニング
+  - 米金融政策・米金利
+  - AI・テック・半導体
+  - クレジット・プライベート市場
+  - 地政学・コモディティ
+  - 各国マクロ
+  - 規制・政策・制度変更

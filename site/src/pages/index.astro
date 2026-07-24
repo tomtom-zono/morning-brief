@@ -1,0 +1,31 @@
+---
+import Base from '../layouts/Base.astro';
+import ArticleCard from '../components/ArticleCard.astro';
+import USMarketRecap from '../components/USMarketRecap.astro';
+import { latestDay, formatDate } from '../lib/content';
+
+const day = latestDay();
+---
+<Base
+  title={day ? `${formatDate(day.date)} | Morning Brief` : 'Morning Brief'}
+  disclaimer={day?.disclaimer}
+  current="today"
+>
+  {day ? (
+    <>
+      <div class="dateline">{formatDate(day.date)} 版</div>
+      <h1 class="page-title">本日のブリーフ</h1>
+      <USMarketRecap bodyMd={day.us_market_recap.body_md} bodyMdEn={day.us_market_recap.body_md_en} />
+      <div class="cards">
+        {day.articles.map((a) => <ArticleCard article={a} date={day.date} />)}
+      </div>
+    </>
+  ) : (
+    <>
+      <h1 class="page-title">まだ記事がありません</h1>
+      <div class="empty">
+        <p><code class="mono">npm run daily</code> を実行すると、当日分のブリーフがここに表示されます。</p>
+      </div>
+    </>
+  )}
+</Base>

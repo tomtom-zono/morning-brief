@@ -1,0 +1,36 @@
+{
+  "name": "morning-brief",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "collect": "tsx pipeline/collect.ts",
+    "generate": "tsx pipeline/generate.ts",
+    "validate": "tsx pipeline/validate.ts",
+    "daily": "tsx pipeline/daily.ts",
+    "demo": "MB_MOCK=1 tsx pipeline/daily.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "check:feeds": "tsx scripts/check-feeds.ts",
+    "try": "tsx scripts/try-real.ts",
+    "build": "npm run build --prefix site",
+    "preview": "npm run preview --prefix site",
+    "check:market": "tsx scripts/check-market.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "openai": "^6.49.0",
+    "rss-parser": "^3.13.0",
+    "yaml": "^2.9.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "tsx": "^4.23.1",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  },
+  "type": "module"
+}

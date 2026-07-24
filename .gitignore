@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+.DS_Store
+
+# raw は再取得可能な中間生成物。content/ はアーカイブとしてコミットする(仕様4.2)
+raw/
+
+# Astro
+site/dist/
+site/.astro/
