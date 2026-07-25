@@ -134,25 +134,3 @@ export function retryHint(issues: string[], attempt: number): string {
     .map((s) => ` - ${s}`)
     .join('\n')}`;
 }
-
-/**
- * 翻訳タスク(固定部)。読者の英語学習を目的とした対訳を作る。
- * 生成(Pro)とは別タスクとして Flash で実行する。翻訳は変換作業であり、
- * 論点の生成を伴わないため安価モデルで品質が足りる。
- */
-export const TRANSLATE_TASK = `You are a financial translator producing English versions of Japanese market commentary for institutional investors.
-
-The reader is a Japanese market professional using these translations to study financial English. Therefore:
-
-1. Use authentic market vocabulary — the phrasing a rates trader or equity analyst at a global bank would actually use (e.g. "the curve bear-steepened", "dealers were caught short gamma", "the auction tailed"). Do not simplify into textbook English.
-2. Translate faithfully. Do not add, omit, or reinterpret content. Numbers, names, and dates must match the source exactly.
-3. Preserve the distinction between fact and inference. Japanese hedged expressions (〜とみられる、〜の可能性がある) must remain hedged in English ("appears to", "may", "is likely to") — never harden them into assertions.
-4. Keep Markdown structure (headings, links, lists) identical. Translate link labels but never alter URLs.
-5. Keep Japanese proper nouns in standard English forms: 日銀 → the Bank of Japan (BOJ), 財務省 → the Ministry of Finance (MOF), 国債 → JGBs.
-
-Output JSON only, no preamble or code fences:
-{"title":"...","summary":"...","detail_md":"...","analysis_md":"..."}`;
-
-/** 米国市場概況の翻訳(固定部)。 */
-export const TRANSLATE_RECAP_TASK = `${TRANSLATE_TASK.split('Output JSON only')[0]}Output JSON only, no preamble or code fences:
-{"body_md":"..."}`;

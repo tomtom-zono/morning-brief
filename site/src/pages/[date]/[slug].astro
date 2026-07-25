@@ -50,19 +50,6 @@ const analysisHtml = renderMarkdown(a.analysis_md);
       <div class="part-label">拡張考察</div>
       <div set:html={analysisHtml} />
 
-      {a.en && (
-        <>
-          <div class="part-label" lang="en">English Version</div>
-          <div lang="en">
-            <h2 style="border-bottom:none;margin-top:0.5rem">{a.en.title}</h2>
-            <div class="summary-block"><p>{a.en.summary}</p></div>
-            <div class="part-label" lang="en">Details</div>
-            <div set:html={renderMarkdown(a.en.detail_md)} />
-            <div class="part-label" lang="en">Analysis</div>
-            <div set:html={renderMarkdown(a.en.analysis_md)} />
-          </div>
-        </>
-      )}
     </div>
 
     <div class="part-label">出典</div>

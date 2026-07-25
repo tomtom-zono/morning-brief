@@ -37,7 +37,6 @@ export interface Article {
   detail_md: string;
   analysis_md: string;
   sources: SourceRef[];
-  en?: { title: string; summary: string; detail_md: string; analysis_md: string };
   quality_warning?: boolean;
   quality_notes?: string[];
 }
@@ -45,7 +44,7 @@ export interface Article {
 export interface DailyContent {
   date: string;
   generated_at: string;
-  us_market_recap: { body_md: string; body_md_en?: string; sources?: SourceRef[]; quality_warning?: boolean };
+  us_market_recap: { body_md: string; sources?: SourceRef[]; quality_warning?: boolean };
   articles: Article[];
   disclaimer: string;
 }

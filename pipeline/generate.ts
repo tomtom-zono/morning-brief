@@ -11,13 +11,13 @@ import { join } from 'node:path';
 import { LIMITS, PATHS, DISCLAIMER, IS_MOCK } from './config.js';
 import { todayJst, previousUsSessionDate } from './lib/date.js';
 import { complete, parseJsonLoose, emptyUsage, addUsage, type Usage } from './lib/llm.js';
-import { ARTICLE_TASK, RECAP_TASK, TRANSLATE_TASK, TRANSLATE_RECAP_TASK, retryHint } from './prompts/system.js';
+import { ARTICLE_TASK, RECAP_TASK, retryHint } from './prompts/system.js';
 import { checkArticle } from './validate.js';
 import { countBodyChars } from './lib/text.js';
 import { Article, type DailyContent } from './schema.js';
 import type { RawBundle, RawItem } from './collect.js';
 import { loadSources } from './collect.js';
-import { mockArticle, mockRecap, mockArticleEn, mockRecapEn } from './lib/mock.js';
+import { mockArticle, mockRecap } from './lib/mock.js';
 import { renderMarketData } from './lib/marketdata.js';
 
 /**
@@ -155,68 +155,6 @@ interface GeneratedArticle {
   detail_md: string;
   analysis_md: string;
   sources: { name: string; url: string }[];
-}
-
-/**
- * 記事の英語対訳を生成する(読者の英語学習用)。
- *
- * モデルは Flash。翻訳は「変換」であり論点の生成を伴わないため、
- * Pro を使う必要がない(コストは記事全体で月+50〜100円程度)。
- * 失敗しても公開は止めず、日本語のみで出す(6時公開優先・仕様4.4と同方針)。
- */
-async function translateArticle(
-  a: Article,
-): Promise<{ en: NonNullable<Article['en']> | undefined; usage: Usage }> {
-  const source = JSON.stringify({
-    title: a.title,
-    summary: a.summary,
-    detail_md: a.detail_md,
-    analysis_md: a.analysis_md,
-  });
-
-  let usage = emptyUsage();
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const { text, usage: u } = await complete(
-      'flash',
-      TRANSLATE_TASK,
-      `Translate the following Japanese article. Source JSON:\n${source}`,
-      () => mockArticleEn(a.theme),
-    );
-    usage = addUsage(usage, u);
-    try {
-      const en = parseJsonLoose<NonNullable<Article['en']>>(text);
-      if (en.title && en.summary && en.detail_md && en.analysis_md) {
-        return { en, usage };
-      }
-    } catch {
-      // 2回目で再試行
-    }
-  }
-  console.warn(`  [warn] 英訳に失敗: ${a.id}。日本語のみで公開する。`);
-  return { en: undefined, usage };
-}
-
-async function translateRecap(
-  bodyMd: string,
-): Promise<{ en: string | undefined; usage: Usage }> {
-  let usage = emptyUsage();
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const { text, usage: u } = await complete(
-      'flash',
-      TRANSLATE_RECAP_TASK,
-      `Translate the following Japanese market recap. Source JSON:\n${JSON.stringify({ body_md: bodyMd })}`,
-      () => mockRecapEn(),
-    );
-    usage = addUsage(usage, u);
-    try {
-      const en = parseJsonLoose<{ body_md: string }>(text);
-      if (en.body_md) return { en: en.body_md, usage };
-    } catch {
-      // 2回目で再試行
-    }
-  }
-  console.warn('  [warn] 米国市場概況の英訳に失敗。日本語のみで公開する。');
-  return { en: undefined, usage };
 }
 
 async function generateArticle(
@@ -430,28 +368,6 @@ export async function generate(date = todayJst()): Promise<DailyContent> {
   const { recap, usage: ru } = await recapPromise;
   usage = addUsage(usage, ru);
   console.log(`[generate] 米国市場概況 完了 [${elapsed()}]`);
-
-  // 英語対訳(学習用)。検証合格後の本文を Flash で並列翻訳する。
-  // 品質注意フラグ付きの記事は本文が確定と言えないため翻訳しない。
-  // 時間予算超過時はスキップし、日本語のみで公開する(6時公開優先)。
-  if (Date.now() <= deadline) {
-    const targets = articles.filter((a) => !a.quality_warning);
-    console.log(`[generate] 英訳 ${targets.length}本+概況を並列実行 [${elapsed()}]`);
-    await Promise.all([
-      mapPool(targets, CONCURRENCY, async (a) => {
-        const { en, usage: tu } = await translateArticle(a);
-        usage = addUsage(usage, tu);
-        if (en) a.en = en;
-      }),
-      (async () => {
-        const { en, usage: tu } = await translateRecap(recap.body_md);
-        usage = addUsage(usage, tu);
-        if (en) recap.body_md_en = en;
-      })(),
-    ]);
-  } else {
-    console.warn(`[generate] 時間予算超過のため英訳をスキップ [${elapsed()}]`);
-  }
 
   const content: DailyContent = {
     date,

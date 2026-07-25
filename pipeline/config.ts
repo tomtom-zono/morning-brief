@@ -56,7 +56,13 @@ export const LIMITS = {
   detailMaxChars: 1200,
   recapMinChars: 800,
   recapMaxChars: 1200,
-  articleCount: 10,
+  /**
+   * 1日の記事数。当初仕様は10本だったが、実運用で生成時間が朝の公開枠
+   * (5:30開始→6:00公開)に収まらないため5本に変更(利用者判断・2026-07-25)。
+   * sources.yaml の themes の先頭から順に使う。テーマを入れ替えたい場合は
+   * themes の並び順を編集すればよい。
+   */
+  articleCount: 5,
   /** 直接引用の上限。和訳も同様に扱う(仕様 2.2)。 */
   quoteMaxChars: 80,
   quotesPerSourceMax: 1,

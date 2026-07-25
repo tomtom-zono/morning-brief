@@ -21,15 +21,6 @@ export const Article = z.object({
   detail_md: z.string().min(1),
   analysis_md: z.string().min(1),
   sources: z.array(SourceRef).min(1, '出典は最低1件必須(仕様 2.2)'),
-  /** 英語版(学習用の対訳)。生成失敗時は欠落を許容し、日本語のみ表示する。 */
-  en: z
-    .object({
-      title: z.string(),
-      summary: z.string(),
-      detail_md: z.string(),
-      analysis_md: z.string(),
-    })
-    .optional(),
   /** 検証不合格でも公開は止めない(仕様 4.4)。その際に立てる。 */
   quality_warning: z.boolean().optional(),
   quality_notes: z.array(z.string()).optional(),
@@ -38,8 +29,6 @@ export type Article = z.infer<typeof Article>;
 
 export const UsMarketRecap = z.object({
   body_md: z.string().min(1),
-  /** 英語版。記事と同様に欠落を許容する。 */
-  body_md_en: z.string().optional(),
   sources: z.array(SourceRef).default([]),
   quality_warning: z.boolean().optional(),
   quality_notes: z.array(z.string()).optional(),

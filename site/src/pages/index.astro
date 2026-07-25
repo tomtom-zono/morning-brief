@@ -15,7 +15,7 @@ const day = latestDay();
     <>
       <div class="dateline">{formatDate(day.date)} 版</div>
       <h1 class="page-title">本日のブリーフ</h1>
-      <USMarketRecap bodyMd={day.us_market_recap.body_md} bodyMdEn={day.us_market_recap.body_md_en} />
+      <USMarketRecap bodyMd={day.us_market_recap.body_md} />
       <div class="cards">
         {day.articles.map((a) => <ArticleCard article={a} date={day.date} />)}
       </div>
